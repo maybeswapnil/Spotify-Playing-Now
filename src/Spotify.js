@@ -1,30 +1,21 @@
 var express = require('express');
 var spotifyRouter = express.Router();
 const axios = require('axios');
-const { MongoClient } = require('mongodb');
-const crypto = require('crypto')
 require('dotenv').config({ path: './credentials.env' })
-const {parse, stringify} = require('flatted');
-  
-console.log("PORT:", process.env.SPOTIFY_CLIENT_ID);
-console.log("SPOTIFY_SECRET_ID:", process.env.SPOTIFY_SECRET_ID);
-console.log("SPOTIFY_REFRESH_TOKEN:", process.env.SPOTIFY_REFRESH_TOKEN);
-console.log("SPOTIFY_URL_REFRESH_TOKEN:", process.env.SPOTIFY_URL_REFRESH_TOKEN);
-console.log("SPOTIFY_URL_NOW_PLAYING:", process.env.SPOTIFY_URL_NOW_PLAYING);
-console.log("SPOTIFY_URL_RECENTLY_PLAY:", process.env.SPOTIFY_URL_RECENTLY_PLAY);
 
+//Local variable from Spotify
 var SPOTIFY_CLIENT_ID=process.env.SPOTIFY_CLIENT_ID
 var SPOTIFY_SECRET_ID= process.env.SPOTIFY_SECRET_ID
 var SPOTIFY_REFRESH_TOKEN= process.env.SPOTIFY_REFRESH_TOKEN
 var SPOTIFY_URL_REFRESH_TOKEN= process.env.SPOTIFY_URL_REFRESH_TOKEN
 var SPOTIFY_URL_NOW_PLAYING= process.env.SPOTIFY_URL_NOW_PLAYING
 
-const fetchRefreshToken = async() => {
+//Function to fetch the Spotify refresh token
+const fetchRefreshToken = async () => {
     let form = {
         grant_type: 'refresh_token',
         refresh_token: SPOTIFY_REFRESH_TOKEN
     }
-
     let config = {
         method: 'post',
         url: SPOTIFY_URL_REFRESH_TOKEN + `?grant_type=refresh_token&refresh_token=${SPOTIFY_REFRESH_TOKEN}`,
@@ -35,18 +26,19 @@ const fetchRefreshToken = async() => {
         body : form,
         json: true
     };
-    
     return await axios(config)
 }
-
-spotifyRouter.get('*', function(req, res, next) {
-    
+const beautifyContent = (response) => {
+    response.album.available_markets = {}
+    response.available_markets = {}
+    return response;
+}
+//GET Request: Fetched now playing
+spotifyRouter.get('/', function(req, res, next) {
     let response;
     try {
-       //ToDo: 
        fetchRefreshToken().then((result) => {
             let ACCESS_TOKEN = result.data.access_token
-        
             let config = {
                 method: 'get',
                 url: SPOTIFY_URL_NOW_PLAYING,
@@ -55,12 +47,25 @@ spotifyRouter.get('*', function(req, res, next) {
                   'Authorization': 'Bearer ' + ACCESS_TOKEN
                 }
             };
-
             axios(config).then(async(response) => {
                 console.log(response.data)
-                res.json(await response.data)
+                var responseError = {
+                    "error": "User Away",
+                    "message": {
+                        "string": "error"
+                    }
+                }                
+                if(response.data.length===0) return res.status(404).json(responseError)
+                res.status(200).json(beautifyContent(await response.data.item))
             }).catch((e) => {
                 console.log(e)
+                var responseError = {
+                    "error": "User Away",
+                    "message": {
+                        "string": e
+                    }
+                }                
+                if(response.data.length===0) return res.status(500).json(responseError)
             })
             
        }).catch((err) => {console.log(err)})
