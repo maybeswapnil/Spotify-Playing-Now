@@ -28,6 +28,7 @@ const fetchRefreshToken = async () => {
     };
     return await axios(config)
 }
+//Convert content into more readable format
 const beautifyContent = (response) => {
     response.album.available_markets = {}
     response.available_markets = {}
